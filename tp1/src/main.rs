@@ -117,5 +117,10 @@ fn main() {
     );
 
     println!("\nDivision avec enum: {:?}", division_avec_enum(4.0, 2.0));
-    println!("Division avec Option: {:?}", division_avec_Option(4.0, 2.0));
+
+    let result = division_avec_Option(2.0, 3.0);
+    match result {
+        Some(x) => println!("Division avec Option: {:?}", x),
+        None => println!("Cannot divide by 0"),
+    }
 }
