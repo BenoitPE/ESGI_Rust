@@ -1,1 +1,1 @@
-# ESGI_Rust
+# ESGI - Cours sur le Langage Rust
