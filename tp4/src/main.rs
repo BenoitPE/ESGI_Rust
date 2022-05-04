@@ -1,8 +1,6 @@
 use crate::Instruction::*;
-use std::{
-    fmt::Error,
-    io::{self, BufRead, Read},
-};
+use std::io::{self, Read};
+use substring::Substring;
 
 #[derive(Debug)]
 enum Instruction {
@@ -14,92 +12,98 @@ enum Instruction {
     Lis,
     Boucle(Vec<Instruction>),
 }
-
-fn interpreteur(memoire: &mut Vec<i32>, instructions: &Vec<Instruction>, pos: usize) {
-    let mut current = pos;
-
+fn interpreteur(mut memoire: &mut Vec<i32>, instructions: &Vec<Instruction>, current: &mut usize) {
+    if 0 == memoire.len() {
+        memoire.push(0)
+    }
     for i in instructions {
         match i {
-            Plus => memoire[current] += 1,
-            Moins => memoire[current] -= 1,
+            Plus => memoire[*current] += 1,
+            Moins => memoire[*current] -= 1,
             Droite => {
-                if current + 1 < memoire.len() {
-                    current += 1;
+                if (*current + 1) < memoire.len() {
+                    *current += 1
                 } else {
                     memoire.push(0);
-                    current += 1;
+                    *current += 1
                 }
             }
             Gauche => {
-                if current - 1 != 0 {
-                    current -= 1;
+                if (*current - 1) == 0 {
+                    *current = 0
                 } else {
-                    current = 0;
+                    *current -= 1
                 }
             }
             Affiche => print!(
                 "{}",
-                std::char::from_u32(memoire[current] as u32).unwrap_or('?')
+                std::char::from_u32(memoire[*current] as u32).unwrap_or('?')
             ),
             Lis => {
-                let mut buffer = [0];
-                match io::stdin().read(&mut buffer) {
-                    Ok(x) => memoire[current] = buffer[0] as i32,
-                    Err(x) => println!("Erreur de lecture"),
+                let mut character = [0];
+                match io::stdin().read(&mut character) {
+                    Ok(_) => memoire[*current] = character[0] as i32,
+                    Err(_) => println!("Erreur de lecture"),
                 }
             }
             Boucle(x) => {
-                while memoire[current] != 0 {
-                    interpreteur(memoire, x, current);
+                while memoire[*current] != 0 {
+                    interpreteur(&mut memoire, &x, current)
                 }
             }
         }
     }
 }
+fn parse(source: String) -> Vec<Instruction> {
+    let mut program: Vec<Instruction> = Vec::new();
+    let mut loop_stack = 0;
+    let mut loop_start = 0;
+    let mut i = 0;
+    for symbol in source.chars() {
+        if loop_stack == 0 {
+            match symbol {
+                '>' => program.push(Droite),
+                '<' => program.push(Gauche),
+                '+' => program.push(Plus),
+                '-' => program.push(Moins),
+                '.' => program.push(Affiche),
+                ',' => program.push(Lis),
+                '[' => {
+                    loop_start = i;
+                    loop_stack += 1;
+                }
+                _ => (),
+            };
+        } else {
+            match symbol {
+                '[' => {
+                    loop_stack += 1;
+                }
+                ']' => {
+                    loop_stack -= 1;
 
-fn parse(s: &String) -> Result<Vec<Instruction>, String> {
-    let mut instructions: Vec<Instruction> = vec![];
-    let mut isOk = true;
-    for c in s.chars() {
-        match c {
-            '+' => instructions.push(Plus),
-            '-' => instructions.push(Moins),
-            '<' => instructions.push(Gauche),
-            '>' => instructions.push(Droite),
-            '.' => instructions.push(Affiche),
-            ',' => instructions.push(Lis),
-            '[' => instructions.push(Affiche),
-            ']' => instructions.push(Affiche),
-            _ => isOk = false,
+                    if loop_stack == 0 {
+                        program.push(Instruction::Boucle(parse(
+                            source.substring(loop_start + 1, i).to_string(),
+                        )));
+                    }
+                }
+                _ => (),
+            }
         }
+        i += 1
     }
-
-    if !isOk {
-        Err("Erreur: Conversion impossible".to_string())
-    } else {
-        Ok(instructions)
-    }
+    program
 }
 
 fn main() {
-    /*let mut mem = vec![72, 101, 108, 108, 111];
-    let instructions = vec![
-        Lis, Plus, Affiche, Lis, Plus, Affiche, Lis, Plus, Lis, Plus, Affiche,
-    ];
+    let mut mem3 = vec![];
+    let mut opcodes = "".to_string();
 
-    interpreteur(&mut mem, &instructions, 0);*/
-
-    /*
-    let mut mem = vec![10, 15];
-    let instructions = vec![Boucle(vec![Moins, Droite, Plus, Gauche])];
-
-    interpreteur(&mut mem, &instructions, 0);
-
-    println!("{:?}", mem);
-     */
-
-    let instructions = std::fs::read_to_string("programs/hello.bf".to_string());
-
-    //let instructions = parse(&"+-<>.,".to_string());
-    println!("{:?}", instructions);
+    match std::fs::read_to_string("src/programs/hanoi.bf".to_string()) {
+        Ok(x) => opcodes = x,
+        Err(_) => (),
+    }
+    let program = parse(opcodes);
+    interpreteur(&mut mem3, &program, &mut 0);
 }
